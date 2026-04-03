@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
@@ -28,6 +29,27 @@ public struct CameraConfig
     public double[] coff;
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
     public uint[] zeros;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public struct CameraTransform
+{
+    public byte fromCamId;
+    public byte toCamId;
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+    public byte[] pad;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 9)]
+    public float[] mat;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public float[] pos;
+}
+
+public struct RelativeTransform
+{
+    public int FromId;
+    public int ToId;
+    public Matrix4x4 T;
 }
 
 public struct PoseData
@@ -209,19 +231,21 @@ public static class PSVR2SharedMemory
 
             float[] floats = new float[64];
 
-            IntPtr posePtr = new IntPtr(basePtr.ToInt64() + 0x3c10 + (0x878 * latestIndex));
-            Marshal.Copy(posePtr, floats, 0, 64);
+            IntPtr infoPtr = new IntPtr(basePtr.ToInt64() + 0x3c10 + (0x878 * latestIndex));
+            Marshal.Copy(infoPtr, floats, 0, 64);
 
-            var r = new Quaternion(floats[3 + 3], floats[4 + 3], floats[5 + 3], floats[6 + 3]);
-            var o = new Quaternion(floats[3 + 10], floats[4 + 10], floats[5 + 10], floats[6 + 10]);
-            r = r * o;
+            var poseQuaternion = new Quaternion(floats[3 + 3], floats[4 + 3], floats[5 + 3], floats[6 + 3]);
 
-            var p = r * new Vector3(floats[0 + 10], floats[1 + 10], floats[2 + 10]);
+            // The PSVR2 computes a dynamic rotation for camera 0 based on minimizing SLAM error.
+            // We will apply the rotation here since we have access to that data.
+            var offsetQuaternion = new Quaternion(floats[3 + 10], floats[4 + 10], floats[5 + 10], floats[6 + 10]);
+            var rotatedPosePositionOffset = poseQuaternion * new Vector3(floats[0 + 10], floats[1 + 10], floats[2 + 10]);
+            poseQuaternion = poseQuaternion * offsetQuaternion;
 
             cameraPose = new PoseData
             {
-                position = new Vector3(floats[0 + 3], floats[1 + 3], floats[2 + 3]) + p,
-                rotation = r,
+                position = new Vector3(floats[0 + 3], floats[1 + 3], floats[2 + 3]) + rotatedPosePositionOffset,
+                rotation = poseQuaternion,
                 isValid = true
             };
 
@@ -281,6 +305,106 @@ public static class PSVR2SharedMemory
         }
 
         return found;
+    }
+
+    public static RelativeTransform ConvertToRelativeTransform(CameraTransform camT)
+    {
+        Matrix4x4 m = Matrix4x4.identity;
+        
+        m.m00 = camT.mat[0]; m.m01 = camT.mat[1]; m.m02 = camT.mat[2];
+        m.m10 = camT.mat[3]; m.m11 = camT.mat[4]; m.m12 = camT.mat[5];
+        m.m20 = camT.mat[6]; m.m21 = camT.mat[7]; m.m22 = camT.mat[8];
+    
+        m.m03 = camT.pos[0];
+        m.m13 = camT.pos[1];
+        m.m23 = camT.pos[2];
+    
+        return new RelativeTransform
+        {
+            FromId = camT.fromCamId,
+            ToId = camT.toCamId,
+            T = m
+        };
+    }
+    
+
+    public static RelativeTransform[] GetCameraRelativeTransforms()
+    {
+        var transforms = new RelativeTransform[3];
+
+        IntPtr hCalibMutex = OpenMutexA(SYNCHRONIZE, false, CALIB_MUTEX_NAME);
+        if (hCalibMutex == IntPtr.Zero) return null;
+
+        if (WaitForSingleObject(hCalibMutex, INFINITE) != WAIT_OBJECT_0)
+        {
+            CloseHandle(hCalibMutex);
+            return null;
+        }
+
+        try
+        {
+            IntPtr configBasePtr = new IntPtr(pBuf.ToInt64() + CALIB_DATA_OFFSET);
+            int configStructSize = Marshal.SizeOf(typeof(CameraConfig));
+            IntPtr configTransformsBasePtr = configBasePtr + (4 * configStructSize);
+            for (int i = 0; i < 3; i++)
+            {
+                IntPtr transformPtr = new IntPtr(configTransformsBasePtr.ToInt64() + (i * Marshal.SizeOf(typeof(CameraTransform))));
+                CameraTransform transform = (CameraTransform)Marshal.PtrToStructure(transformPtr, typeof(CameraTransform));
+
+                transforms[i] = ConvertToRelativeTransform(transform);
+            }
+        }
+        finally
+        {
+            ReleaseMutex(hCalibMutex);
+            CloseHandle(hCalibMutex);
+        }
+
+        return transforms;
+    }
+
+    public static Dictionary<int, Matrix4x4> ComputeAbsolutePoses(
+        List<RelativeTransform> relativeTransforms,
+        Vector3 rootPosition, 
+        Quaternion rootRotation)
+    {
+        int rootId = 0;
+
+        // Create the matrix for Cam 0 using the passed-in position and rotation
+        Matrix4x4 pose0 = Matrix4x4.TRS(rootPosition, rootRotation, Vector3.one);
+        
+        Dictionary<int, Matrix4x4> poses = new Dictionary<int, Matrix4x4>
+        {
+            { rootId, pose0 }
+        };
+        
+        Queue<int> queue = new Queue<int>();
+        queue.Enqueue(rootId);
+        
+        // BFS to resolve the Kinematic Tree into global space
+        while (queue.Count > 0)
+        {
+            int current = queue.Dequeue();
+            
+            foreach (var rel in relativeTransforms)
+            {
+                // If the transform defines 'from' relative to 'current' (to)
+                if (rel.ToId == current && !poses.ContainsKey(rel.FromId))
+                {
+                    poses[rel.FromId] = poses[current] * rel.T;
+                    queue.Enqueue(rel.FromId);
+                }
+                // If the transform defines 'current' (from) relative to 'to'
+                // We must invert the matrix to traverse backward up the tree
+                else if (rel.FromId == current && !poses.ContainsKey(rel.ToId))
+                {
+                    poses[rel.ToId] = poses[current] * rel.T.inverse;
+                    queue.Enqueue(rel.ToId);
+                }
+            }
+        }
+
+        return poses;
     }
 
     public static bool TriggerEVFWorker(long flags)

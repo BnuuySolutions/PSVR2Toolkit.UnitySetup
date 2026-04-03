@@ -3,6 +3,8 @@ using System;
 using Valve.VR;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using System.Linq;
+using System.Collections.Generic;
 
 public class PSVR2CameraViewer : MonoBehaviour
 {
@@ -19,6 +21,8 @@ public class PSVR2CameraViewer : MonoBehaviour
     private Material matLeft, matRight;
     private MeshFilter meshFilterLeft, meshFilterRight;
 
+    private List<RelativeTransform> relativeTransforms;
+
     void Start()
     {
         // Ensure SteamVR is initialized
@@ -26,21 +30,7 @@ public class PSVR2CameraViewer : MonoBehaviour
         {
             Debug.Log("Setting tracking universe to Raw and Uncalibrated...");
 
-            // Option 1: Set the plugin's global setting
-            // This is the recommended way if you're using the SteamVR_Settings asset
             SteamVR.settings.trackingSpace = ETrackingUniverseOrigin.TrackingUniverseRawAndUncalibrated;
-
-            // Option 2: Call the Compositor directly (lower-level)
-            // This forces the change on the compositor itself.
-            if (OpenVR.Compositor != null)
-            {
-                OpenVR.Compositor.SetTrackingSpace(ETrackingUniverseOrigin.TrackingUniverseRawAndUncalibrated);
-                Debug.Log("Compositor tracking space set successfully.");
-            }
-            else
-            {
-                Debug.LogError("Could not find OpenVR Compositor to set tracking space.");
-            }
         }
         else
         {
@@ -87,17 +77,21 @@ public class PSVR2CameraViewer : MonoBehaviour
             Debug.LogWarning("Pose Stabilizer not assigned. Creating one automatically.");
             GameObject stabilizer = new GameObject("Passthrough Stabilizer");
             poseStabilizer = stabilizer.transform;
+
             // Try to parent to XR Origin if possible, otherwise root is okay if it tracks room-scale.
             if (Camera.main != null && Camera.main.transform.parent != null)
             {
                 poseStabilizer.SetParent(Camera.main.transform.parent);
             }
+
             poseStabilizer.localPosition = Vector3.zero;
             poseStabilizer.localRotation = Quaternion.identity;
 
             cameraRendererLeft.transform.SetParent(poseStabilizer, false);
             cameraRendererRight.transform.SetParent(poseStabilizer, false);
         }
+
+        relativeTransforms = PSVR2SharedMemory.GetCameraRelativeTransforms().ToList();
     }
 
     void OnEnable()
@@ -122,23 +116,28 @@ public class PSVR2CameraViewer : MonoBehaviour
 
             if (historicalPose.isValid)
             {
-                // Apply the historical pose to the stabilizer.
-                // Since the stabilizer is parented to the XR Origin, these local coordinates
-                // should match the SteamVR tracking space coordinates from shared memory.
-                // NOTE: You might need to flip/swizzle coordinates if SteamVR and Unity differ.
-                // SteamVR is usually right-handed, Y-up. Unity is left-handed, Y-up.
-                // A common conversion is: UnityPos = new Vector3(steamPos.x, steamPos.y, -steamPos.z);
-                // UnityRot = new Quaternion(-steamRot.x, -steamRot.y, steamRot.z, steamRot.w);
-                // Try direct first, then apply conversion if it moves backwards/inverted.
-
+                // Note that Camera 0 is the root. poseStabilizer will be where the HMD thinks camera 0 is.
                 poseStabilizer.localPosition = historicalPose.position;
-                poseStabilizer.localRotation = Quaternion.Euler(correction.x, 0, 0)
+                poseStabilizer.localRotation =
+                    Quaternion.Euler(correction.x, 0, 0)
                     * Quaternion.Euler(0, correction.y, 0)
                     * Quaternion.Euler(0, 0, correction.z)
                     * historicalPose.rotation
                     * Quaternion.Euler(correctionPost.x, 0, 0)
                     * Quaternion.Euler(0, correctionPost.y, 0)
                     * Quaternion.Euler(0, 0, correctionPost.z);
+
+                // These relative transforms seem to be in another space compared to the poses we get directly from ShareManager.
+                // Luckly for us, it appears the relative transforms from the config are in the same coordinate space as Unity.
+                // If we put any offset on the left camera (index 0), we must start the relative from that Transform.
+                var abs = PSVR2SharedMemory.ComputeAbsolutePoses(
+                    relativeTransforms,
+                    meshFilterLeft.transform.position,
+                    meshFilterLeft.transform.rotation);
+
+                // Right camera is index 1
+                meshFilterRight.transform.position = abs[1].GetPosition();
+                meshFilterRight.transform.rotation = abs[1].GetRotation();
             }
 
             matLeft.SetVector("_FloorPosition", center.position);

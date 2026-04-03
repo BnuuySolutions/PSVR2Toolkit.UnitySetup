@@ -23,8 +23,10 @@ public static class PSVR2Distortion
     /// <returns>A spherical segment mesh.</returns>
     public static Mesh CreateDefaultMesh(float maxFovAngle = 65.0f, int meshDensityX = 256, int meshDensityY = 256)
     {
-        Mesh mesh = new Mesh();
-        mesh.name = "PSVR2_DefaultBubble";
+        Mesh mesh = new Mesh
+        {
+            name = "PSVR2_DefaultBubble"
+        };
 
         List<Vector3> vertices = new List<Vector3>();
         List<Vector2> uvs = new List<Vector2>();
@@ -282,19 +284,15 @@ public static class PSVR2Distortion
         }
 
         // Create and assign to mesh
-        Mesh mesh = new Mesh();
-        mesh.name = "PSVR2_UndistortMesh";
-        mesh.vertices = vertices.ToArray();
-        mesh.uv = uvs.ToArray();
-        mesh.triangles = triangles.ToArray();
-
-        // Optional: Recalculate normals, though not strictly needed for an unlit shader
-        // For a sphere, normals are just the normalized vertex positions
+        Mesh mesh = new Mesh
+        {
+            name = "PSVR2_UndistortMesh",
+            vertices = vertices.ToArray(),
+            uv = uvs.ToArray(),
+            triangles = triangles.ToArray()
+        };
+        
         mesh.RecalculateNormals();
-        // A more accurate normal calculation for a sphere centered at origin:
-        // Vector3[] normals = new Vector3[vertices.Count];
-        // for(int i=0; i < vertices.Count; i++) { normals[i] = vertices[i].normalized; }
-        // mesh.normals = normals;
 
         return mesh;
     }
