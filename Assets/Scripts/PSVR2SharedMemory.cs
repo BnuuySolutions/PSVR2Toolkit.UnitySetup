@@ -179,7 +179,7 @@ public static class PSVR2SharedMemory
         Debug.Log("PSVR2 Shared Memory Cleaned up.");
     }
 
-    public static bool GetLatestImageBuffer(byte[] leftCameraData, byte[] rightCameraData, out PoseData cameraPose)
+    public static bool GetLatestImageBuffer(byte[] leftCameraData, byte[] rightCameraData, out PoseData leftCameraPose)
     {
         // Perform keep-alive to make sure the PSVR2 does not force 3DOF.
         IntPtr hCommonEvent = OpenEventA(EVENT_MODIFY_STATE, false, COMMON_EVENT_NAME);
@@ -205,7 +205,7 @@ public static class PSVR2SharedMemory
         }
         
 
-        cameraPose = new PoseData { isValid = false };
+        leftCameraPose = new PoseData { isValid = false };
 
         if (WaitForSingleObject(hImageEvent, INFINITE) != WAIT_OBJECT_0) return false;
         if (WaitForSingleObject(hImageMutex, INFINITE) != WAIT_OBJECT_0) return false;
@@ -240,16 +240,15 @@ public static class PSVR2SharedMemory
             // We will apply the rotation here since we have access to that data.
             var offsetQuaternion = new Quaternion(floats[3 + 10], floats[4 + 10], floats[5 + 10], floats[6 + 10]);
             var rotatedPosePositionOffset = poseQuaternion * new Vector3(floats[0 + 10], floats[1 + 10], floats[2 + 10]);
+
             poseQuaternion = poseQuaternion * offsetQuaternion;
 
-            cameraPose = new PoseData
+            leftCameraPose = new PoseData
             {
                 position = new Vector3(floats[0 + 3], floats[1 + 3], floats[2 + 3]) + rotatedPosePositionOffset,
-                rotation = poseQuaternion,
+                rotation = poseQuaternion.normalized,
                 isValid = true
             };
-
-            cameraPose.position.z *= -1.0f;
 
             Marshal.Copy(dataPtr, leftCameraData, 0, BC4_DATA_SIZE);
             IntPtr rightDataPtr = new IntPtr(dataPtr.ToInt64() + BC4_DATA_SIZE);

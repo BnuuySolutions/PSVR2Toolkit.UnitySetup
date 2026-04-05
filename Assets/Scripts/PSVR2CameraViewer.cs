@@ -10,8 +10,7 @@ public class PSVR2CameraViewer : MonoBehaviour
 {
     public MeshRenderer cameraRendererLeft;
     public MeshRenderer cameraRendererRight;
-    public Material bc4Material;
-    public Transform poseStabilizer; // Assign the parent of the passthrough meshes here
+    public Material passThroughMaterial;
     public Transform center;
     public Vector3 correction;
     public Vector3 correctionPost;
@@ -58,8 +57,8 @@ public class PSVR2CameraViewer : MonoBehaviour
         meshFilterLeft = cameraRendererLeft.GetComponent<MeshFilter>();
         meshFilterRight = cameraRendererRight.GetComponent<MeshFilter>();
 
-        matLeft = Instantiate(bc4Material);
-        matRight = Instantiate(bc4Material);
+        matLeft = Instantiate(passThroughMaterial);
+        matRight = Instantiate(passThroughMaterial);
 
         matLeft.SetInt("_StereoEyeIndex", 0);  // Left Eye
         matRight.SetInt("_StereoEyeIndex", 1); // Right Eye
@@ -71,25 +70,6 @@ public class PSVR2CameraViewer : MonoBehaviour
         matRight.SetTexture("_MainTex", texRight);
 
         UpdateMeshes();
-
-        if (poseStabilizer == null)
-        {
-            Debug.LogWarning("Pose Stabilizer not assigned. Creating one automatically.");
-            GameObject stabilizer = new GameObject("Passthrough Stabilizer");
-            poseStabilizer = stabilizer.transform;
-
-            // Try to parent to XR Origin if possible, otherwise root is okay if it tracks room-scale.
-            if (Camera.main != null && Camera.main.transform.parent != null)
-            {
-                poseStabilizer.SetParent(Camera.main.transform.parent);
-            }
-
-            poseStabilizer.localPosition = Vector3.zero;
-            poseStabilizer.localRotation = Quaternion.identity;
-
-            cameraRendererLeft.transform.SetParent(poseStabilizer, false);
-            cameraRendererRight.transform.SetParent(poseStabilizer, false);
-        }
 
         relativeTransforms = PSVR2SharedMemory.GetCameraRelativeTransforms().ToList();
     }
@@ -107,37 +87,50 @@ public class PSVR2CameraViewer : MonoBehaviour
     void OnBeforeRender(ScriptableRenderContext context, Camera camera)
     {
         // Get latest image AND the interpolated pose for when it was taken
-        if (PSVR2SharedMemory.GetLatestImageBuffer(bufferLeft, bufferRight, out PoseData historicalPose))
+        if (PSVR2SharedMemory.GetLatestImageBuffer(bufferLeft, bufferRight, out PoseData leftPose))
         {
             texLeft.LoadRawTextureData(bufferLeft);
             texRight.LoadRawTextureData(bufferRight);
             texLeft.Apply();
             texRight.Apply();
 
-            if (historicalPose.isValid)
+            if (leftPose.isValid)
             {
-                // Note that Camera 0 is the root. poseStabilizer will be where the HMD thinks camera 0 is.
-                poseStabilizer.localPosition = historicalPose.position;
-                poseStabilizer.localRotation =
-                    Quaternion.Euler(correction.x, 0, 0)
+                // This is practically all config or unit based. Only hardcoded thing is the -15 degrees rotation on X then Y.
+                // Other than that, it's pretty much spot on.
+
+                // Camera 0 is the bottom left (eye) camera.
+                meshFilterLeft.transform.position = new Vector3(leftPose.position.x, leftPose.position.y, -leftPose.position.z);
+                meshFilterLeft.transform.rotation =
+                    (Quaternion.Euler(correction.x, 0, 0)
                     * Quaternion.Euler(0, correction.y, 0)
                     * Quaternion.Euler(0, 0, correction.z)
-                    * historicalPose.rotation
+                    * leftPose.rotation
+                    * Quaternion.Euler(-15, 0, 0)
+                    * Quaternion.Euler(0, -15, 0)
                     * Quaternion.Euler(correctionPost.x, 0, 0)
                     * Quaternion.Euler(0, correctionPost.y, 0)
-                    * Quaternion.Euler(0, 0, correctionPost.z);
+                    * Quaternion.Euler(0, 0, correctionPost.z)).normalized;
 
-                // These relative transforms seem to be in another space compared to the poses we get directly from ShareManager.
-                // Luckly for us, it appears the relative transforms from the config are in the same coordinate space as Unity.
-                // If we put any offset on the left camera (index 0), we must start the relative from that Transform.
-                var abs = PSVR2SharedMemory.ComputeAbsolutePoses(
+                var absolutePoses = PSVR2SharedMemory.ComputeAbsolutePoses(
                     relativeTransforms,
-                    meshFilterLeft.transform.position,
-                    meshFilterLeft.transform.rotation);
+                    leftPose.position,
+                    leftPose.rotation * Quaternion.Euler(-15, 0, 0)
+                    * Quaternion.Euler(0, -15, 0));
 
-                // Right camera is index 1
-                meshFilterRight.transform.position = abs[1].GetPosition();
-                meshFilterRight.transform.rotation = abs[1].GetRotation();
+                // Bottom right camera is index 1
+                var rightPos = absolutePoses[1].GetPosition();
+
+                meshFilterRight.transform.position = new Vector3(rightPos.x, rightPos.y, -rightPos.z);
+                meshFilterRight.transform.rotation =
+                    (Quaternion.Euler(correction.x, 0, 0)
+                    * Quaternion.Euler(0, correction.y, 0)
+                    * Quaternion.Euler(0, 0, correction.z)
+                    * absolutePoses[1].GetRotation()
+                    * Quaternion.Euler(correctionPost.x, 0, 0)
+                    * Quaternion.Euler(0, correctionPost.y, 0)
+                    * Quaternion.Euler(0, 0, correctionPost.z)
+                    ).normalized;
             }
 
             matLeft.SetVector("_FloorPosition", center.position);
