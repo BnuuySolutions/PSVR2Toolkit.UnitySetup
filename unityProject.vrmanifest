@@ -5,10 +5,10 @@
       "app_key": "application.generated.unity.psvr2passthrough.exe",
       "launch_type": "url",
       "url": "steam://launch/",
-      "action_manifest_path": "F:\\PSVR2Passthrough\\Assets\\StreamingAssets\\SteamVR\\actions.json",
+      "action_manifest_path": "F:\\PSVR2PlayAreaSetup\\Assets\\StreamingAssets\\SteamVR\\actions.json",
       "strings": {
         "en_us": {
-          "name": "PSVR2Passthrough [Testing]"
+          "name": "PSVR2PlayAreaSetup [Testing]"
         }
       }
     }

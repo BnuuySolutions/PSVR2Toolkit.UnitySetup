@@ -649,6 +649,24 @@ public class ChaperoneMesh : MonoBehaviour
         return -_playArea.standingCenter[1];
     }
 
+
+    /// <summary>
+    /// Transforms all chaperone points.
+    /// </summary>
+    /// <param name="translation">The translation vector.</param>
+    /// <param name="yawRotation">The rotation on the Y axis in degrees.</param>
+    /// <param name="pivot">The pivot point for the rotation.</param>
+    public void TransformPoints(Vector3 translation, float yawRotation, Vector3 pivot)
+    {
+        for (int i = 0; i < _worldPoints.Count; i++)
+        {
+            Vector3 relativePos = _worldPoints[i] - pivot;
+            relativePos = Quaternion.Euler(0, yawRotation, 0) * relativePos;
+            _worldPoints[i] = pivot + relativePos + translation;
+        }
+        RefreshMesh();
+    }
+
     public void SaveToSharedMemory()
     {
         // 1. Find the largest rectangle based on head orientation

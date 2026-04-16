@@ -1,279 +1,245 @@
 {
-   "action_manifest_version" : 0,
-   "alias_info" : {},
-   "app_key" : "application.generated.unity.psvr2passthrough.exe",
-   "bindings" : {
-      "/actions/buggy" : {
-         "chords" : [],
-         "haptics" : [],
-         "poses" : [],
-         "skeleton" : [],
-         "sources" : []
-      },
-      "/actions/default" : {
-         "chords" : [],
-         "haptics" : [],
-         "poses" : [],
-         "skeleton" : [],
-         "sources" : []
-      },
-      "/actions/platformer" : {
-         "chords" : [],
-         "haptics" : [],
-         "poses" : [],
-         "skeleton" : [],
-         "sources" : []
-      },
-      "/actions/playarea" : {
-         "haptics" : [
-            {
-               "output" : "/actions/playarea/out/haptic",
-               "path" : "/user/hand/left/output/haptic"
-            },
-            {
-               "output" : "/actions/playarea/out/haptic",
-               "path" : "/user/hand/right/output/haptic"
+  "app_key": "application.generated.unity.psvr2passthrough.exe",
+  "bindings": {
+    "/actions/buggy": {
+      "chords": [],
+      "poses": [],
+      "haptics": [],
+      "sources": [],
+      "skeleton": []
+    },
+    "/actions/default": {
+      "chords": [],
+      "poses": [],
+      "haptics": [],
+      "sources": [],
+      "skeleton": []
+    },
+    "/actions/platformer": {
+      "chords": [],
+      "poses": [],
+      "haptics": [],
+      "sources": [],
+      "skeleton": []
+    },
+    "/actions/playarea": {
+      "chords": [],
+      "poses": [
+        {
+          "output": "/actions/playarea/in/pose",
+          "path": "/user/hand/left/pose/raw"
+        },
+        {
+          "output": "/actions/playarea/in/pose",
+          "path": "/user/hand/right/pose/raw"
+        }
+      ],
+      "haptics": [
+        {
+          "output": "/actions/playarea/out/haptic",
+          "path": "/user/hand/left/output/haptic"
+        },
+        {
+          "output": "/actions/playarea/out/haptic",
+          "path": "/user/hand/right/output/haptic"
+        }
+      ],
+      "sources": [
+        {
+          "path": "/user/hand/left/input/l2",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/drawormove"
             }
-         ],
-         "poses" : [
-            {
-               "output" : "none",
-               "path" : "/user/hand/left/pose/base"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/pose/base"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/left/pose/tip"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/pose/tip"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/left/pose/handgrip"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/pose/handgrip"
-            },
-            {
-               "output" : "/actions/playarea/in/pose",
-               "path" : "/user/hand/left/pose/raw"
-            },
-            {
-               "output" : "/actions/playarea/in/pose",
-               "path" : "/user/hand/right/pose/raw"
+          }
+        },
+        {
+          "path": "/user/hand/left/input/l2",
+          "mode": "trigger",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/uiselect"
             }
-         ],
-         "skeleton" : [],
-         "sources" : [
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/drawormove"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/left/input/l2"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/uiselect"
-                  }
-               },
-               "mode" : "trigger",
-               "parameters" : {},
-               "path" : "/user/hand/left/input/l2"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/adjustfloortocontroller"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/left/input/l1"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/adjustfloortocontroller"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/l1"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/drawormove"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/l2"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/uiselect"
-                  }
-               },
-               "mode" : "trigger",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/l2"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/snaptopoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/left/input/square"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/snaptopoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/square"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/deletepoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/left/input/triangle"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/deletepoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/triangle"
-            },
-            {
-               "inputs" : {
-                  "position" : {
-                     "output" : "/actions/playarea/in/movefloor"
-                  }
-               },
-               "mode" : "joystick",
-               "parameters" : {},
-               "path" : "/user/hand/left/input/left_stick"
-            },
-            {
-               "inputs" : {
-                  "position" : {
-                     "output" : "/actions/playarea/in/movefloor"
-                  }
-               },
-               "mode" : "joystick",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/left_stick"
-            },
-            {
-               "inputs" : {
-                  "position" : {
-                     "output" : "/actions/playarea/in/movefloor"
-                  }
-               },
-               "mode" : "joystick",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/right_stick"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/deletepoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/circle"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/snaptopoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/cross"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/drawormove"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/r2"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/uiselect"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/r2"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/adjustfloortocontroller"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/r1"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/headsetonhead"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/head/proximity"
+          }
+        },
+        {
+          "path": "/user/hand/left/input/l1",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/adjustfloortocontroller"
             }
-         ]
-      }
-   },
-   "category" : "steamvr_input",
-   "controller_type" : "playstation_vr2_hmd",
-   "description" : "",
-   "interaction_profile" : "",
-   "name" : "playstation_vr2",
-   "options" : {
-      "compatibility_mode" : true,
-      "simulate_hmd" : true,
-      "simulate_rendermodel" : true,
-      "simulated_controller_type" : "none"
-   },
-   "simulated_actions" : []
+          }
+        },
+        {
+          "path": "/user/hand/right/input/l1",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/adjustfloortocontroller"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/l2",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/drawormove"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/l2",
+          "mode": "trigger",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/uiselect"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/square",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/snaptopoint"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/square",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/snaptopoint"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/triangle",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/deletepoint"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/triangle",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/deletepoint"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/left_stick",
+          "mode": "joystick",
+          "parameters": {},
+          "inputs": {
+            "position": {
+              "output": "/actions/playarea/in/movefloor"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/left_stick",
+          "mode": "joystick",
+          "parameters": {},
+          "inputs": {
+            "position": {
+              "output": "/actions/playarea/in/movefloor"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/right_stick",
+          "mode": "joystick",
+          "parameters": {},
+          "inputs": {
+            "position": {
+              "output": "/actions/playarea/in/movefloor"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/circle",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/deletepoint"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/cross",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/snaptopoint"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/r2",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/drawormove"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/r2",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/uiselect"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/r1",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/adjustfloortocontroller"
+            }
+          }
+        },
+        {
+          "path": "/user/head/proximity",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/playarea/in/headsetonhead"
+            }
+          }
+        }
+      ],
+      "skeleton": []
+    }
+  },
+  "controller_type": "playstation_vr2_hmd",
+  "description": "",
+  "name": "playstation_vr2"
 }

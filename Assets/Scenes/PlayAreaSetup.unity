@@ -409,7 +409,6 @@ MonoBehaviour:
   center: {fileID: 38576390}
   correction: {x: 180, y: 180, z: 0}
   correctionPost: {x: 0, y: 180, z: 0}
-  poseOffset: {x: -0.01, y: 0, z: 0}
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -881,6 +880,9 @@ MonoBehaviour:
   floorMoveAction:
     actionPath: /actions/PlayArea/in/MoveFloor
     needsReinit: 0
+  movePlayAreaAction:
+    actionPath: /actions/PlayArea/in/MovePlayArea
+    needsReinit: 0
   hapticAction:
     actionPath: /actions/PlayArea/out/Haptic
     needsReinit: 0
@@ -1096,6 +1098,9 @@ MonoBehaviour:
     needsReinit: 0
   floorMoveAction:
     actionPath: /actions/PlayArea/in/MoveFloor
+    needsReinit: 0
+  movePlayAreaAction:
+    actionPath: /actions/PlayArea/in/MovePlayArea
     needsReinit: 0
   hapticAction:
     actionPath: /actions/PlayArea/out/Haptic

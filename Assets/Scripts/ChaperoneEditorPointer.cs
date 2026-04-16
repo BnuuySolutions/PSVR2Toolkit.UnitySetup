@@ -39,6 +39,9 @@ public class ChaperoneEditorPointer : MonoBehaviour
     [Tooltip("The action to move the floor height up or down.")]
     public SteamVR_Action_Vector2 floorMoveAction;
 
+    [Tooltip("The action to move the entire play area.")]
+    public SteamVR_Action_Boolean movePlayAreaAction;
+
     [Tooltip("The haptic feedback action.")]
     public SteamVR_Action_Vibration hapticAction;
 
@@ -69,6 +72,10 @@ public class ChaperoneEditorPointer : MonoBehaviour
     private bool amIDrawing = false;
     private bool isSnapping = false;
     private int snappedVertexIndex = -1;
+
+    private bool isMovingPlayArea = false;
+    private Vector3 lastControllerPos;
+    private Quaternion lastControllerRot;
     private bool hasLoaded = false;
     private GameObject modelHolder;
 
@@ -143,6 +150,8 @@ public class ChaperoneEditorPointer : MonoBehaviour
             floorAdjustAction.actionSet.Activate(inputSource);
         if (floorMoveAction != null)
             floorMoveAction.actionSet.Activate(inputSource);
+        if (movePlayAreaAction != null)
+            movePlayAreaAction.actionSet.Activate(inputSource);
     }
 
     private void OnDisable()
@@ -157,6 +166,8 @@ public class ChaperoneEditorPointer : MonoBehaviour
             floorAdjustAction.actionSet.Deactivate(inputSource);
         if (floorMoveAction != null)
             floorMoveAction.actionSet.Deactivate(inputSource);
+        if (movePlayAreaAction != null)
+            movePlayAreaAction.actionSet.Deactivate(inputSource);
     }
 
     void Update()
@@ -205,6 +216,30 @@ public class ChaperoneEditorPointer : MonoBehaviour
             var newCenter = roomCenter.position;
             newCenter.y += moveAmount;
             roomCenter.position = newCenter;
+        }
+
+        if (movePlayAreaAction != null && movePlayAreaAction.GetStateDown(inputSource))
+        {
+            isMovingPlayArea = true;
+            lastControllerPos = transform.position;
+            lastControllerRot = transform.rotation;
+        }
+        else if (movePlayAreaAction != null && movePlayAreaAction.GetStateUp(inputSource))
+        {
+            isMovingPlayArea = false;
+        }
+
+        if (isMovingPlayArea)
+        {
+            Vector3 translation = transform.position - lastControllerPos;
+            translation.y = 0; // Prevent changing floor height
+            float yawDelta = transform.rotation.eulerAngles.y - lastControllerRot.eulerAngles.y;
+
+            chaperoneMesh.TransformPoints(translation, yawDelta, lastControllerPos);
+
+            lastControllerPos = transform.position;
+            lastControllerRot = transform.rotation;
+            return; // Skip other interactions
         }
 
         isSnapping = snapAction.GetState(inputSource);

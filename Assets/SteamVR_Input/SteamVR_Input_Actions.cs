@@ -33,6 +33,8 @@ namespace Valve.VR
         
         private static SteamVR_Action_Boolean p_playArea_DeletePoint;
         
+        private static SteamVR_Action_Boolean p_playArea_MovePlayArea;
+        
         private static SteamVR_Action_Vibration p_playArea_Haptic;
         
         public static SteamVR_Action_Boolean playArea_DrawOrMove
@@ -99,6 +101,14 @@ namespace Valve.VR
             }
         }
         
+        public static SteamVR_Action_Boolean playArea_MovePlayArea
+        {
+            get
+            {
+                return SteamVR_Actions.p_playArea_MovePlayArea.GetCopy<SteamVR_Action_Boolean>();
+            }
+        }
+        
         public static SteamVR_Action_Vibration playArea_Haptic
         {
             get
@@ -118,6 +128,7 @@ namespace Valve.VR
                     SteamVR_Actions.playArea_HeadsetOnHead,
                     SteamVR_Actions.playArea_UISelect,
                     SteamVR_Actions.playArea_DeletePoint,
+                    SteamVR_Actions.playArea_MovePlayArea,
                     SteamVR_Actions.playArea_Haptic};
             Valve.VR.SteamVR_Input.actionsIn = new Valve.VR.ISteamVR_Action_In[] {
                     SteamVR_Actions.playArea_DrawOrMove,
@@ -127,7 +138,8 @@ namespace Valve.VR
                     SteamVR_Actions.playArea_Pose,
                     SteamVR_Actions.playArea_HeadsetOnHead,
                     SteamVR_Actions.playArea_UISelect,
-                    SteamVR_Actions.playArea_DeletePoint};
+                    SteamVR_Actions.playArea_DeletePoint,
+                    SteamVR_Actions.playArea_MovePlayArea};
             Valve.VR.SteamVR_Input.actionsOut = new Valve.VR.ISteamVR_Action_Out[] {
                     SteamVR_Actions.playArea_Haptic};
             Valve.VR.SteamVR_Input.actionsVibration = new Valve.VR.SteamVR_Action_Vibration[] {
@@ -140,7 +152,8 @@ namespace Valve.VR
                     SteamVR_Actions.playArea_AdjustFloorToController,
                     SteamVR_Actions.playArea_HeadsetOnHead,
                     SteamVR_Actions.playArea_UISelect,
-                    SteamVR_Actions.playArea_DeletePoint};
+                    SteamVR_Actions.playArea_DeletePoint,
+                    SteamVR_Actions.playArea_MovePlayArea};
             Valve.VR.SteamVR_Input.actionsSingle = new Valve.VR.SteamVR_Action_Single[0];
             Valve.VR.SteamVR_Input.actionsVector2 = new Valve.VR.SteamVR_Action_Vector2[] {
                     SteamVR_Actions.playArea_MoveFloor};
@@ -153,7 +166,8 @@ namespace Valve.VR
                     SteamVR_Actions.playArea_MoveFloor,
                     SteamVR_Actions.playArea_HeadsetOnHead,
                     SteamVR_Actions.playArea_UISelect,
-                    SteamVR_Actions.playArea_DeletePoint};
+                    SteamVR_Actions.playArea_DeletePoint,
+                    SteamVR_Actions.playArea_MovePlayArea};
         }
         
         private static void PreInitActions()
@@ -166,6 +180,7 @@ namespace Valve.VR
             SteamVR_Actions.p_playArea_HeadsetOnHead = ((SteamVR_Action_Boolean)(SteamVR_Action.Create<SteamVR_Action_Boolean>("/actions/PlayArea/in/HeadsetOnHead")));
             SteamVR_Actions.p_playArea_UISelect = ((SteamVR_Action_Boolean)(SteamVR_Action.Create<SteamVR_Action_Boolean>("/actions/PlayArea/in/UISelect")));
             SteamVR_Actions.p_playArea_DeletePoint = ((SteamVR_Action_Boolean)(SteamVR_Action.Create<SteamVR_Action_Boolean>("/actions/PlayArea/in/DeletePoint")));
+            SteamVR_Actions.p_playArea_MovePlayArea = ((SteamVR_Action_Boolean)(SteamVR_Action.Create<SteamVR_Action_Boolean>("/actions/PlayArea/in/MovePlayArea")));
             SteamVR_Actions.p_playArea_Haptic = ((SteamVR_Action_Vibration)(SteamVR_Action.Create<SteamVR_Action_Vibration>("/actions/PlayArea/out/Haptic")));
         }
     }
