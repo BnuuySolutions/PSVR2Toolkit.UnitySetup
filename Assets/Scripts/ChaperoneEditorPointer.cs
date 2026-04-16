@@ -132,7 +132,9 @@ public class ChaperoneEditorPointer : MonoBehaviour
 
         foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
         {
-            controllerColliders.Add(mf.gameObject.AddComponent<MeshCollider>());
+            var collider = mf.gameObject.AddComponent<MeshCollider>();
+            collider.convex = true;
+            controllerColliders.Add(collider);
         }
     }
 
@@ -253,10 +255,10 @@ public class ChaperoneEditorPointer : MonoBehaviour
                 foreach (var collider in controllerColliders)
                 {
                     // We need the world space bounds to find the lowest point.
-                    var bounds = collider.bounds;
-                    if (bounds.min.y < lowestY)
+                    var bounds = collider.ClosestPoint(transform.position + Vector3.down * 100.0f);
+                    if (bounds.y < lowestY)
                     {
-                        lowestY = bounds.min.y;
+                        lowestY = bounds.y;
                     }
                 }
 
