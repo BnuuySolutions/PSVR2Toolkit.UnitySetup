@@ -1099,7 +1099,7 @@ namespace Valve.VR.InteractionSystem
             inputFocusAction.enabled = true;
 
             // Stagger updates between hands
-            float hoverUpdateBegin = ((otherHand != null) && (otherHand.GetInstanceID() < GetInstanceID())) ? (0.5f * hoverUpdateInterval) : (0.0f);
+            float hoverUpdateBegin = ((otherHand != null) && (otherHand.GetEntityId() < GetEntityId())) ? (0.5f * hoverUpdateInterval) : (0.0f);
             InvokeRepeating("UpdateHovering", hoverUpdateBegin, hoverUpdateInterval);
             InvokeRepeating("UpdateDebugText", hoverUpdateBegin, hoverUpdateInterval);
         }
