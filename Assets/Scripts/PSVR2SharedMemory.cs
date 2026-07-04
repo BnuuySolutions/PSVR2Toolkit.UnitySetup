@@ -101,60 +101,33 @@ public static class PSVR2SharedMemory
     private const string PLAYAREA_RESULT_MUTEX_NAME = "SHARE_VRT2_WIN_PLAYAREA_RESULT_MTX";
     private const int PLAYAREA_RESULT_OFFSET = 0x927C;
 
-    // Win32 Imports
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
-    private static extern IntPtr OpenFileMappingA(uint dwDesiredAccess, bool bInheritHandle, string lpName);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr MapViewOfFile(IntPtr hFileMappingObject, uint dwDesiredAccess, uint dwFileOffsetHigh, uint dwFileOffsetLow, UIntPtr dwNumberOfBytesToMap);
-
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
-    private static extern IntPtr OpenEventA(uint dwDesiredAccess, bool bInheritHandle, string lpName);
-
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
-    private static extern IntPtr OpenMutexA(uint dwDesiredAccess, bool bInheritHandle, string lpName);
-
-    [DllImport("kernel32.dll")]
-    private static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool SetEvent(IntPtr hEvent);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool ReleaseMutex(IntPtr hMutex);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool UnmapViewOfFile(IntPtr lpBaseAddress);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool CloseHandle(IntPtr hObject);
-
-    private const uint FILE_MAP_READ = 0x0004;
-    private const uint FILE_MAP_WRITE = 0x0002;
-    private const uint SYNCHRONIZE = 0x00100000;
-    private const uint EVENT_MODIFY_STATE = 0x0002;
-    private const uint WAIT_OBJECT_0 = 0x00000000;
     private const uint INFINITE = 0xFFFFFFFF;
 
-    private static IntPtr hMapFile = IntPtr.Zero;
+    private static IntPtr shm = IntPtr.Zero;
     private static IntPtr pBuf = IntPtr.Zero;
-    private static IntPtr hImageEvent = IntPtr.Zero;
-    private static IntPtr hImageMutex = IntPtr.Zero;
+    private static IntPtr imageEvent = IntPtr.Zero;
+    private static IntPtr imageMutex = IntPtr.Zero;
+    private static IntPtr commonEvent = IntPtr.Zero;
+    private static IntPtr commonMutex = IntPtr.Zero;
+    private static uint lastImageTimestamp = 0;
 
     public static void Init()
     {
         try
         {
-            hMapFile = OpenFileMappingA(FILE_MAP_WRITE | FILE_MAP_READ, false, FILE_MAPPING_NAME);
-            if (hMapFile == IntPtr.Zero) throw new Exception("Could not open file mapping object. Is PSVR2 and SteamVR on?");
+            shm = CrossIPC.CreateIpcSharedMemory(FILE_MAPPING_NAME, (UIntPtr)SHARED_MEM_SIZE);
+            if (shm == IntPtr.Zero) throw new Exception("Could not open file mapping object. Is PSVR2 and SteamVR on?");
 
-            pBuf = MapViewOfFile(hMapFile, FILE_MAP_WRITE | FILE_MAP_READ, 0, 0, (UIntPtr)SHARED_MEM_SIZE);
+            pBuf = CrossIPC.IpcSharedMemory_Map(shm);
             if (pBuf == IntPtr.Zero) throw new Exception("Could not map view of file.");
 
-            hImageEvent = OpenEventA(SYNCHRONIZE, false, EVENT_NAME);
-            hImageMutex = OpenMutexA(SYNCHRONIZE, false, MUTEX_NAME);
+            imageEvent = CrossIPC.CreateIpcEvent(EVENT_NAME, false);
+            imageMutex = CrossIPC.CreateIpcMutex(MUTEX_NAME);
 
-            if (hImageEvent == IntPtr.Zero || hImageMutex == IntPtr.Zero)
+            commonEvent = CrossIPC.CreateIpcEvent(COMMON_EVENT_NAME, false);
+            commonMutex = CrossIPC.CreateIpcMutex(COMMON_MUTEX_NAME);
+
+            if (imageEvent == IntPtr.Zero || imageMutex == IntPtr.Zero || commonEvent == IntPtr.Zero || commonMutex == IntPtr.Zero)
             {
                 throw new Exception("Failed to open sync objects.");
             }
@@ -170,25 +143,32 @@ public static class PSVR2SharedMemory
 
     public static void Cleanup()
     {
-        if (hImageEvent != IntPtr.Zero) CloseHandle(hImageEvent);
-        if (hImageMutex != IntPtr.Zero) CloseHandle(hImageMutex);
-        if (pBuf != IntPtr.Zero) UnmapViewOfFile(pBuf);
-        if (hMapFile != IntPtr.Zero) CloseHandle(hMapFile);
+        if (imageEvent != IntPtr.Zero) CrossIPC.DestroyIpcEvent(imageEvent);
+        if (imageMutex != IntPtr.Zero) CrossIPC.DestroyIpcMutex(imageMutex);
+        if (commonEvent != IntPtr.Zero) CrossIPC.DestroyIpcEvent(commonEvent);
+        if (commonMutex != IntPtr.Zero) CrossIPC.DestroyIpcMutex(commonMutex);
+        if (shm != IntPtr.Zero)
+        {
+            if (pBuf != IntPtr.Zero)
+            {
+                CrossIPC.IpcSharedMemory_Unmap(shm);
+            }
+            CrossIPC.DestroyIpcSharedMemory(shm);
+        }
 
-        hMapFile = pBuf = hImageEvent = hImageMutex = IntPtr.Zero;
+        shm = pBuf = imageEvent = imageMutex = IntPtr.Zero;
+        lastImageTimestamp = 0;
         Debug.Log("PSVR2 Shared Memory Cleaned up.");
     }
 
     public static bool GetLatestImageBuffer(byte[] leftCameraData, byte[] rightCameraData, out PoseData leftCameraPose)
     {
         // Perform keep-alive to make sure the PSVR2 does not force 3DOF.
-        IntPtr hCommonEvent = OpenEventA(EVENT_MODIFY_STATE, false, COMMON_EVENT_NAME);
-        IntPtr hCommonMutex = OpenMutexA(SYNCHRONIZE, false, COMMON_MUTEX_NAME);
-
-        if (hCommonEvent != IntPtr.Zero && hCommonMutex != IntPtr.Zero)
+        if (commonEvent != IntPtr.Zero && commonMutex != IntPtr.Zero)
         {
-            if (WaitForSingleObject(hCommonMutex, INFINITE) == WAIT_OBJECT_0)
+            try
             {
+                CrossIPC.IpcMutex_Lock(commonMutex);
                 try
                 {
                     byte val = Marshal.ReadByte(pBuf, COMMON_PLAY_AREA_APP_KEEPALIVE_OFFSET);
@@ -196,19 +176,27 @@ public static class PSVR2SharedMemory
                 }
                 finally
                 {
-                    ReleaseMutex(hCommonMutex);
+                    CrossIPC.IpcMutex_Unlock(commonMutex);
                 }
-                SetEvent(hCommonEvent);
+                CrossIPC.IpcEvent_Set(commonEvent);
             }
-            CloseHandle(hCommonEvent);
-            CloseHandle(hCommonMutex);
+            catch (Exception ex)
+            {
+                Debug.LogError("Error in common keep-alive: " + ex.Message);
+            }
         }
-        
 
         leftCameraPose = new PoseData { isValid = false };
-
-        if (WaitForSingleObject(hImageEvent, INFINITE) != WAIT_OBJECT_0) return false;
-        if (WaitForSingleObject(hImageMutex, INFINITE) != WAIT_OBJECT_0) return false;
+        
+        try
+        {
+            CrossIPC.IpcMutex_Lock(imageMutex);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to lock image mutex: " + ex.Message);
+            return false;
+        }
 
         try
         {
@@ -225,7 +213,14 @@ public static class PSVR2SharedMemory
             if (latestTimestamp <= (uint)Marshal.ReadInt32(basePtr, 0x5df8)) { latestIndex = 4; latestTimestamp = (uint)Marshal.ReadInt32(basePtr, 0x5df8); }
             if (latestTimestamp <= (uint)Marshal.ReadInt32(basePtr, 0x6670)) { latestIndex = 5; latestTimestamp = (uint)Marshal.ReadInt32(basePtr, 0x6670); }
             if (latestTimestamp <= (uint)Marshal.ReadInt32(basePtr, 0x6ee8)) { latestIndex = 6; latestTimestamp = (uint)Marshal.ReadInt32(basePtr, 0x6ee8); }
-            if (latestTimestamp <= (uint)Marshal.ReadInt32(basePtr, 0x7760)) { latestIndex = 7; }
+            if (latestTimestamp <= (uint)Marshal.ReadInt32(basePtr, 0x7760)) { latestIndex = 7; latestTimestamp = (uint)Marshal.ReadInt32(basePtr, 0x7760); }
+
+            if (latestTimestamp == lastImageTimestamp)
+            {
+                return false;
+            }
+
+            lastImageTimestamp = latestTimestamp;
 
             IntPtr dataPtr = new IntPtr(basePtr.ToInt64() + IMAGE_BUFFER_OFFSET + (PER_CAMERA_BUFFER_STRIDE * latestIndex));
 
@@ -256,7 +251,7 @@ public static class PSVR2SharedMemory
         }
         finally
         {
-            ReleaseMutex(hImageMutex);
+            CrossIPC.IpcMutex_Unlock(imageMutex);
         }
         return true;
     }
@@ -265,12 +260,17 @@ public static class PSVR2SharedMemory
     {
         parameters = new CameraParameters();
         intrinsics = new CameraIntrinsics();
-        IntPtr hCalibMutex = OpenMutexA(SYNCHRONIZE, false, CALIB_MUTEX_NAME);
+        IntPtr hCalibMutex = CrossIPC.CreateIpcMutex(CALIB_MUTEX_NAME);
         if (hCalibMutex == IntPtr.Zero) return false;
 
-        if (WaitForSingleObject(hCalibMutex, INFINITE) != WAIT_OBJECT_0)
+        try
         {
-            CloseHandle(hCalibMutex);
+            CrossIPC.IpcMutex_Lock(hCalibMutex);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to lock calibration mutex: " + ex.Message);
+            CrossIPC.DestroyIpcMutex(hCalibMutex);
             return false;
         }
 
@@ -299,8 +299,12 @@ public static class PSVR2SharedMemory
         }
         finally
         {
-            ReleaseMutex(hCalibMutex);
-            CloseHandle(hCalibMutex);
+            try
+            {
+                CrossIPC.IpcMutex_Unlock(hCalibMutex);
+            }
+            catch {}
+            CrossIPC.DestroyIpcMutex(hCalibMutex);
         }
 
         return found;
@@ -331,12 +335,17 @@ public static class PSVR2SharedMemory
     {
         var transforms = new RelativeTransform[3];
 
-        IntPtr hCalibMutex = OpenMutexA(SYNCHRONIZE, false, CALIB_MUTEX_NAME);
+        IntPtr hCalibMutex = CrossIPC.CreateIpcMutex(CALIB_MUTEX_NAME);
         if (hCalibMutex == IntPtr.Zero) return null;
 
-        if (WaitForSingleObject(hCalibMutex, INFINITE) != WAIT_OBJECT_0)
+        try
         {
-            CloseHandle(hCalibMutex);
+            CrossIPC.IpcMutex_Lock(hCalibMutex);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to lock calibration mutex for relative transforms: " + ex.Message);
+            CrossIPC.DestroyIpcMutex(hCalibMutex);
             return null;
         }
 
@@ -355,8 +364,12 @@ public static class PSVR2SharedMemory
         }
         finally
         {
-            ReleaseMutex(hCalibMutex);
-            CloseHandle(hCalibMutex);
+            try
+            {
+                CrossIPC.IpcMutex_Unlock(hCalibMutex);
+            }
+            catch {}
+            CrossIPC.DestroyIpcMutex(hCalibMutex);
         }
 
         return transforms;
@@ -410,62 +423,62 @@ public static class PSVR2SharedMemory
     {
         if (pBuf == IntPtr.Zero) return false;
 
-        // We need EVENT_MODIFY_STATE to call SetEvent
-        IntPtr hEvfEvent = OpenEventA(EVENT_MODIFY_STATE, false, EVF_EVENT_NAME);
-        IntPtr hEvfMutex = OpenMutexA(SYNCHRONIZE, false, EVF_MUTEX_NAME);
+        IntPtr hEvfEvent = CrossIPC.CreateIpcEvent(EVF_EVENT_NAME, false);
+        IntPtr hEvfMutex = CrossIPC.CreateIpcMutex(EVF_MUTEX_NAME);
 
         if (hEvfEvent == IntPtr.Zero || hEvfMutex == IntPtr.Zero)
         {
-            if (hEvfEvent != IntPtr.Zero) CloseHandle(hEvfEvent);
-            if (hEvfMutex != IntPtr.Zero) CloseHandle(hEvfMutex);
+            if (hEvfEvent != IntPtr.Zero) CrossIPC.DestroyIpcEvent(hEvfEvent);
+            if (hEvfMutex != IntPtr.Zero) CrossIPC.DestroyIpcMutex(hEvfMutex);
             Debug.LogError("Failed to open EVF sync objects.");
             return false;
         }
 
         try
         {
-            if (WaitForSingleObject(hEvfMutex, INFINITE) == WAIT_OBJECT_0)
+            CrossIPC.IpcMutex_Lock(hEvfMutex);
+            try
             {
-                try
-                {
-                    Marshal.WriteInt64(pBuf, EVF_FLAG_OFFSET, flags);
-                }
-                finally
-                {
-                    ReleaseMutex(hEvfMutex);
-                }
+                Marshal.WriteInt64(pBuf, EVF_FLAG_OFFSET, flags);
+            }
+            finally
+            {
+                CrossIPC.IpcMutex_Unlock(hEvfMutex);
+            }
 
-                SetEvent(hEvfEvent);
-                return true;
-            }
-            else
-            {
-                Debug.LogError("Failed to acquire EVF mutex.");
-                return false;
-            }
+            CrossIPC.IpcEvent_Set(hEvfEvent);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to trigger EVF worker: " + ex.Message);
+            return false;
         }
         finally
         {
-            // Cleanup local handles
-            CloseHandle(hEvfEvent);
-            CloseHandle(hEvfMutex);
+            CrossIPC.DestroyIpcEvent(hEvfEvent);
+            CrossIPC.DestroyIpcMutex(hEvfMutex);
         }
     }
 
     public static PlayArea GetPlayArea()
     {
         PlayArea playArea = new PlayArea();
-        IntPtr hPlayAreaMutex = OpenMutexA(SYNCHRONIZE, false, PLAYAREA_RESULT_MUTEX_NAME);
+        IntPtr hPlayAreaMutex = CrossIPC.CreateIpcMutex(PLAYAREA_RESULT_MUTEX_NAME);
         if (hPlayAreaMutex == IntPtr.Zero)
         {
             Debug.LogError("Failed to open PlayArea mutex.");
             return playArea;
         }
 
-        if (WaitForSingleObject(hPlayAreaMutex, INFINITE) != WAIT_OBJECT_0)
+        try
         {
-            Debug.LogError("Failed to acquire PlayArea mutex.");
-            CloseHandle(hPlayAreaMutex);
+            CrossIPC.IpcMutex_Lock(hPlayAreaMutex);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to acquire PlayArea mutex: " + ex.Message);
+            CrossIPC.DestroyIpcMutex(hPlayAreaMutex);
             return playArea;
         }
 
@@ -476,25 +489,33 @@ public static class PSVR2SharedMemory
         }
         finally
         {
-            ReleaseMutex(hPlayAreaMutex);
-            CloseHandle(hPlayAreaMutex);
+            try
+            {
+                CrossIPC.IpcMutex_Unlock(hPlayAreaMutex);
+            }
+            catch {}
+            CrossIPC.DestroyIpcMutex(hPlayAreaMutex);
         }
         return playArea;
     }
 
     public static void SetPlayArea(PlayArea playArea)
     {
-        IntPtr hPlayAreaMutex = OpenMutexA(SYNCHRONIZE, false, PLAYAREA_RESULT_MUTEX_NAME);
+        IntPtr hPlayAreaMutex = CrossIPC.CreateIpcMutex(PLAYAREA_RESULT_MUTEX_NAME);
         if (hPlayAreaMutex == IntPtr.Zero)
         {
             Debug.LogError("Failed to open PlayArea mutex for writing.");
             return;
         }
 
-        if (WaitForSingleObject(hPlayAreaMutex, INFINITE) != WAIT_OBJECT_0)
+        try
         {
-            Debug.LogError("Failed to acquire PlayArea mutex for writing.");
-            CloseHandle(hPlayAreaMutex);
+            CrossIPC.IpcMutex_Lock(hPlayAreaMutex);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to acquire PlayArea mutex for writing: " + ex.Message);
+            CrossIPC.DestroyIpcMutex(hPlayAreaMutex);
             return;
         }
 
@@ -505,8 +526,12 @@ public static class PSVR2SharedMemory
         }
         finally
         {
-            ReleaseMutex(hPlayAreaMutex);
-            CloseHandle(hPlayAreaMutex);
+            try
+            {
+                CrossIPC.IpcMutex_Unlock(hPlayAreaMutex);
+            }
+            catch {}
+            CrossIPC.DestroyIpcMutex(hPlayAreaMutex);
         }
 
         TriggerEVFWorker(0x40);
