@@ -1,5 +1,5 @@
 {
-  "app_key": "application.generated.unity.psvr2passthrough.exe",
+  "app_key": "application.generated.unity.psvr2toolkit.unitysetup.exe",
   "bindings": {
     "/actions/buggy": {
       "chords": [],

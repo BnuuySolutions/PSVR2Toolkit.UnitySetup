@@ -36,6 +36,9 @@ public class ChaperoneMesh : MonoBehaviour
     public MeshFilter lineMeshFilter;
     public float lineThickness = 0.0075f; // 7.5 cm
 
+    [Header("Floor Rect")]
+    public MeshFilter floorRectMeshFilter;
+
     [Header("VR References")]
 
     public Transform head;
@@ -61,6 +64,11 @@ public class ChaperoneMesh : MonoBehaviour
 
         lineMeshFilter.mesh = new Mesh { name = "ChaperoneLineMesh" };
 
+        if (floorRectMeshFilter != null)
+        {
+            floorRectMeshFilter.mesh = new Mesh { name = "ChaperoneFloorRectMesh" };
+        }
+
         LoadPlayArea();
     }
 
@@ -80,6 +88,19 @@ public class ChaperoneMesh : MonoBehaviour
     public void LoadPlayArea()
     {
         _playArea = PSVR2SharedMemory.GetPlayArea();
+        if (_playArea.playAreaRect == null)
+        {
+            _playArea.playAreaRect = new float[2];
+        }
+        if (_playArea.standingCenter == null)
+        {
+            _playArea.standingCenter = new float[3];
+        }
+        if (_playArea.points == null)
+        {
+            _playArea.points = new float[512];
+        }
+
         _worldPoints.Clear();
         for (int i = 0; i < _playArea.pointCount; i++)
         {
@@ -117,6 +138,7 @@ public class ChaperoneMesh : MonoBehaviour
 
     private Task floorTask = null;
     private Task lineTask = null;
+    private Task rectTask = null;
 
     public void RefreshMesh()
     {
@@ -124,6 +146,10 @@ public class ChaperoneMesh : MonoBehaviour
         {
             _mesh.Clear();
             lineMeshFilter.mesh.Clear();
+            if (floorRectMeshFilter != null && floorRectMeshFilter.mesh != null)
+            {
+                floorRectMeshFilter.mesh.Clear();
+            }
             return;
         }
 
@@ -147,6 +173,32 @@ public class ChaperoneMesh : MonoBehaviour
             lineTask = Task.Run(() =>
             {
                 GenerateLineMesh();
+            });
+        }
+
+        if (floorRectMeshFilter != null && (rectTask == null || rectTask.IsCompleted))
+        {
+            float rectW = (_playArea.playAreaRect != null && _playArea.playAreaRect.Length >= 2) ? _playArea.playAreaRect[0] : 0f;
+            float rectL = (_playArea.playAreaRect != null && _playArea.playAreaRect.Length >= 2) ? _playArea.playAreaRect[1] : 0f;
+            float yawVal = _playArea.yaw;
+            float[] centerCopy = new float[3];
+            if (_playArea.standingCenter != null && _playArea.standingCenter.Length >= 3)
+            {
+                centerCopy[0] = _playArea.standingCenter[0];
+                centerCopy[1] = _playArea.standingCenter[1];
+                centerCopy[2] = _playArea.standingCenter[2];
+            }
+
+            rectTask = Task.Run(() =>
+            {
+                try
+                {
+                    GenerateFloorRectMesh(rectW, rectL, yawVal, centerCopy);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Error generating floor rect mesh: {ex.Message}\n{ex.StackTrace}");
+                }
             });
         }
     }
@@ -301,6 +353,86 @@ public class ChaperoneMesh : MonoBehaviour
                 lineMesh.triangles = meshData.triangles;
                 lineMesh.RecalculateNormals();
                 lineMesh.RecalculateBounds();
+            });
+        }
+    }
+
+    private Vector3 TransformDriverToWorld(Vector2 driverPoint, float[] center, float yaw)
+    {
+        Vector3 basePos = new Vector3(center[0], center[1], center[2]);
+        Quaternion yawRotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
+        Vector3 p = new Vector3(driverPoint.x, 0, driverPoint.y);
+        Vector3 g = (yawRotation * p) - basePos;
+        g.z = -g.z;
+        return g;
+    }
+
+    private void GenerateFloorRectMesh(float rectW, float rectL, float yawVal, float[] centerCopy)
+    {
+        if (floorRectMeshFilter == null) return;
+
+        if (rectW <= 0f || rectL <= 0f)
+        {
+            lock (_mainThreadActions)
+            {
+                _mainThreadActions.Enqueue(() =>
+                {
+                    if (floorRectMeshFilter != null && floorRectMeshFilter.mesh != null)
+                    {
+                        floorRectMeshFilter.mesh.Clear();
+                    }
+                });
+            }
+            return;
+        }
+
+        float halfW = rectW / 2.0f;
+        float halfL = rectL / 2.0f;
+
+        Vector2 c0 = new Vector2(-halfW, -halfL);
+        Vector2 c1 = new Vector2(halfW, -halfL);
+        Vector2 c2 = new Vector2(halfW, halfL);
+        Vector2 c3 = new Vector2(-halfW, halfL);
+
+        Vector3 w0 = TransformDriverToWorld(c0, centerCopy, yawVal);
+        Vector3 w1 = TransformDriverToWorld(c1, centerCopy, yawVal);
+        Vector3 w2 = TransformDriverToWorld(c2, centerCopy, yawVal);
+        Vector3 w3 = TransformDriverToWorld(c3, centerCopy, yawVal);
+
+        Vector3[] vertices = new Vector3[] { w0, w1, w2, w3 };
+        
+        int[] triangles = new int[]
+        {
+            // Face up
+            0, 3, 2,
+            0, 2, 1,
+            // Face down
+            0, 1, 2,
+            0, 2, 3
+        };
+
+        Vector2[] uvs = new Vector2[]
+        {
+            new Vector2(0, 0),
+            new Vector2(1, 0),
+            new Vector2(1, 1),
+            new Vector2(0, 1)
+        };
+
+        lock (_mainThreadActions)
+        {
+            _mainThreadActions.Enqueue(() =>
+            {
+                if (floorRectMeshFilter != null && floorRectMeshFilter.mesh != null)
+                {
+                    Mesh rectMesh = floorRectMeshFilter.mesh;
+                    rectMesh.Clear();
+                    rectMesh.vertices = vertices;
+                    rectMesh.triangles = triangles;
+                    rectMesh.uv = uvs;
+                    rectMesh.RecalculateNormals();
+                    rectMesh.RecalculateBounds();
+                }
             });
         }
     }
@@ -669,7 +801,7 @@ public class ChaperoneMesh : MonoBehaviour
 
     public void SaveToSharedMemory()
     {
-        // 1. Find the largest rectangle based on head orientation
+        // Find the largest rectangle based on head orientation
         if (head != null && _worldPoints.Count >= 3)
         {
             PathD polygon = new PathD(_worldPoints.Count);
@@ -683,11 +815,11 @@ public class ChaperoneMesh : MonoBehaviour
             headForward.Normalize();
             double angle = Math.Atan2(headForward.z, headForward.x);
 
-            PathD largestRect = LargestRectangleFinder.FindLargestRectAtAngle(polygon, angle, gridResolution);
+            PathD largestRect = LargestRectangleFinder.FindLargestRectAtAngle(polygon, angle, gridResolution, new PointD(head.position.x, head.position.z));
 
             if (largestRect.Count == 4)
             {
-                // 2. Update _playArea with the rectangle's properties
+                // Update _playArea with the rectangle's properties
                 _playArea.standingCenter[0] = (float)(largestRect[0].x + largestRect[2].x) / -2.0f;
                 _playArea.standingCenter[2] = (float)(largestRect[0].y + largestRect[2].y) / 2.0f;
                 _playArea.playAreaRect[1] = (float)Math.Sqrt(Math.Pow(largestRect[1].x - largestRect[0].x, 2) + Math.Pow(largestRect[1].y - largestRect[0].y, 2));
@@ -696,21 +828,24 @@ public class ChaperoneMesh : MonoBehaviour
             }
         }
 
-        // 3. Convert world points to driver points
-        Simplify(); // Run simplification before saving
+        // Run simplification before saving
+        Simplify();
+
+        // Convert world points to driver points
         for (int i = 0; i < _playArea.pointCount; i++)
         {
             Vector2 driverPoint = TransformWorldToDriver(_worldPoints[i]);
             _playArea.points[i * 2] = driverPoint.x;
             _playArea.points[i * 2 + 1] = driverPoint.y;
         }
+
         // Clear any remaining points in the array if the new count is smaller
         for (int i = _playArea.pointCount * 2; i < _playArea.points.Length; i++)
         {
             _playArea.points[i] = 0;
         }
         
-        // 4. Save the updated PlayArea to shared memory
+        // Save the updated play area to shared memory
         PSVR2SharedMemory.SetPlayArea(_playArea);
         Debug.Log("Chaperone data saved to shared memory.");
     }
