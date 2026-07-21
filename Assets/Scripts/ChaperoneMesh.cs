@@ -87,6 +87,7 @@ public class ChaperoneMesh : MonoBehaviour
 
     public void LoadPlayArea()
     {
+        PSVR2SharedMemory.Init();
         _playArea = PSVR2SharedMemory.GetPlayArea();
         if (_playArea.playAreaRect == null)
         {
@@ -799,10 +800,94 @@ public class ChaperoneMesh : MonoBehaviour
         RefreshMesh();
     }
 
+    /// <summary>
+    /// Returns a copy of the current world-space boundary points.
+    /// </summary>
+    public List<Vector3> GetWorldPoints()
+    {
+        return new List<Vector3>(_worldPoints);
+    }
+
+    /// <summary>
+    /// Updates the visual preview of the play area rectangle with direct world-space corners.
+    /// </summary>
+    /// <param name="worldCorners">Array of 4 Vector3 positions representing the corners of the rectangle in world space.</param>
+    public void UpdateRectanglePreview(Vector3[] worldCorners)
+    {
+        if (floorRectMeshFilter == null) return;
+
+        if (worldCorners == null || worldCorners.Length != 4)
+        {
+            lock (_mainThreadActions)
+            {
+                _mainThreadActions.Enqueue(() =>
+                {
+                    if (floorRectMeshFilter != null && floorRectMeshFilter.mesh != null)
+                    {
+                        floorRectMeshFilter.mesh.Clear();
+                    }
+                });
+            }
+            return;
+        }
+
+        Vector3[] vertices = new Vector3[] { worldCorners[0], worldCorners[1], worldCorners[2], worldCorners[3] };
+        
+        int[] triangles = new int[]
+        {
+            // Face up
+            0, 3, 2,
+            0, 2, 1,
+            // Face down
+            0, 1, 2,
+            0, 2, 3
+        };
+
+        Vector2[] uvs = new Vector2[]
+        {
+            new Vector2(0, 0),
+            new Vector2(1, 0),
+            new Vector2(1, 1),
+            new Vector2(0, 1)
+        };
+
+        lock (_mainThreadActions)
+        {
+            _mainThreadActions.Enqueue(() =>
+            {
+                if (floorRectMeshFilter != null && floorRectMeshFilter.mesh != null)
+                {
+                    Mesh rectMesh = floorRectMeshFilter.mesh;
+                    rectMesh.Clear();
+                    rectMesh.vertices = vertices;
+                    rectMesh.triangles = triangles;
+                    rectMesh.uv = uvs;
+                    rectMesh.RecalculateNormals();
+                    rectMesh.RecalculateBounds();
+                }
+            });
+        }
+    }
+
     public void SaveToSharedMemory()
     {
-        // Find the largest rectangle based on head orientation
-        if (head != null && _worldPoints.Count >= 3)
+        bool gotPreview = false;
+
+        // Try to read the preview rectangle parameters from PlayAreaPreviewController first
+        PlayAreaPreviewController previewController = FindAnyObjectByType<PlayAreaPreviewController>();
+        if (previewController != null && previewController.GetPreviewRectangle(out float c0, out float c2, out float w, out float l, out float y))
+        {
+            _playArea.standingCenter[0] = c0;
+            _playArea.standingCenter[2] = c2;
+            _playArea.playAreaRect[0] = w;
+            _playArea.playAreaRect[1] = l;
+            _playArea.yaw = y;
+            gotPreview = true;
+            Debug.Log($"[ChaperoneMesh] Saved play area using preview controller rectangle: center({c0}, {c2}), size({w}, {l}), yaw({y})");
+        }
+
+        // Find the largest rectangle based on head orientation as fallback
+        if (!gotPreview && head != null && _worldPoints.Count >= 3)
         {
             PathD polygon = new PathD(_worldPoints.Count);
             foreach (var p in _worldPoints)

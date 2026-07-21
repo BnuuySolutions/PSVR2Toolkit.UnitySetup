@@ -111,8 +111,12 @@ public static class PSVR2SharedMemory
     private static IntPtr commonMutex = IntPtr.Zero;
     private static uint lastImageTimestamp = 0;
 
+    private static bool initialized = false;
+
     public static void Init()
     {
+        if (initialized) return;
+
         try
         {
             shm = CrossIPC.CreateIpcSharedMemory(FILE_MAPPING_NAME, (UIntPtr)SHARED_MEM_SIZE);
@@ -131,6 +135,9 @@ public static class PSVR2SharedMemory
             {
                 throw new Exception("Failed to open sync objects.");
             }
+
+            initialized = true;
+
             Debug.Log("PSVR2 Shared Memory Initialized.");
         }
         catch (Exception e)
@@ -143,6 +150,8 @@ public static class PSVR2SharedMemory
 
     public static void Cleanup()
     {
+        initialized = false;
+
         if (imageEvent != IntPtr.Zero) CrossIPC.DestroyIpcEvent(imageEvent);
         if (imageMutex != IntPtr.Zero) CrossIPC.DestroyIpcMutex(imageMutex);
         if (commonEvent != IntPtr.Zero) CrossIPC.DestroyIpcEvent(commonEvent);
@@ -163,6 +172,11 @@ public static class PSVR2SharedMemory
 
     public static bool GetLatestImageBuffer(byte[] leftCameraData, byte[] rightCameraData, out PoseData leftCameraPose)
     {
+        if (!initialized) {
+            leftCameraPose = new PoseData();
+            return false;
+        }
+        
         // Perform keep-alive to make sure the PSVR2 does not force 3DOF.
         if (commonEvent != IntPtr.Zero && commonMutex != IntPtr.Zero)
         {
@@ -260,6 +274,10 @@ public static class PSVR2SharedMemory
     {
         parameters = new CameraParameters();
         intrinsics = new CameraIntrinsics();
+        if (!initialized) {
+            return false;
+        }
+        
         IntPtr hCalibMutex = CrossIPC.CreateIpcMutex(CALIB_MUTEX_NAME);
         if (hCalibMutex == IntPtr.Zero) return false;
 
@@ -333,6 +351,8 @@ public static class PSVR2SharedMemory
 
     public static RelativeTransform[] GetCameraRelativeTransforms()
     {
+        if (!initialized) return null;
+        
         var transforms = new RelativeTransform[3];
 
         IntPtr hCalibMutex = CrossIPC.CreateIpcMutex(CALIB_MUTEX_NAME);
@@ -421,7 +441,7 @@ public static class PSVR2SharedMemory
 
     public static bool TriggerEVFWorker(long flags)
     {
-        if (pBuf == IntPtr.Zero) return false;
+        if (!initialized) return false;
 
         IntPtr hEvfEvent = CrossIPC.CreateIpcEvent(EVF_EVENT_NAME, false);
         IntPtr hEvfMutex = CrossIPC.CreateIpcMutex(EVF_MUTEX_NAME);
@@ -464,6 +484,9 @@ public static class PSVR2SharedMemory
     public static PlayArea GetPlayArea()
     {
         PlayArea playArea = new PlayArea();
+
+        if (!initialized) return playArea;
+
         IntPtr hPlayAreaMutex = CrossIPC.CreateIpcMutex(PLAYAREA_RESULT_MUTEX_NAME);
         if (hPlayAreaMutex == IntPtr.Zero)
         {
@@ -501,6 +524,8 @@ public static class PSVR2SharedMemory
 
     public static void SetPlayArea(PlayArea playArea)
     {
+        if (!initialized) return;
+        
         IntPtr hPlayAreaMutex = CrossIPC.CreateIpcMutex(PLAYAREA_RESULT_MUTEX_NAME);
         if (hPlayAreaMutex == IntPtr.Zero)
         {

@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 9157990996745411264}
   - component: {fileID: 881480512264067478}
   - component: {fileID: 7883860366137252429}
-  - component: {fileID: 3551952283202676315}
   m_Layer: 5
   m_Name: Button
   m_TagString: Untagged
@@ -118,7 +117,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 0}
+  m_TargetGraphic: {fileID: 881480512264067478}
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
@@ -134,27 +133,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!65 &3551952283202676315
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5517443894642793131}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 90, y: 20, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8193136330078250653
 GameObject:
   m_ObjectHideFlags: 0

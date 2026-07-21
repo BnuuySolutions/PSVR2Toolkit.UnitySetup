@@ -33,12 +33,6 @@ public class ChaperoneEditorPointer : MonoBehaviour
     [Tooltip("The action to delete the currently snapped point.")]
     public SteamVR_Action_Boolean deletePointAction;
 
-    [Tooltip("The action to enable floor height adjustment mode.")]
-    public SteamVR_Action_Boolean floorAdjustAction;
-
-    [Tooltip("The action to move the floor height up or down.")]
-    public SteamVR_Action_Vector2 floorMoveAction;
-
     [Tooltip("The action to move the entire play area.")]
     public SteamVR_Action_Boolean movePlayAreaAction;
 
@@ -58,7 +52,7 @@ public class ChaperoneEditorPointer : MonoBehaviour
 
     public float maxAngle = 75f;
 
-    public Shader controllerShader;
+
 
 
     // Determine if we are adding or subtracting based on whether the hit point is inside the current mesh
@@ -76,10 +70,7 @@ public class ChaperoneEditorPointer : MonoBehaviour
     private bool isMovingPlayArea = false;
     private Vector3 lastControllerPos;
     private Quaternion lastControllerRot;
-    private bool hasLoaded = false;
-    private GameObject modelHolder;
 
-    private List<MeshCollider> controllerColliders = new List<MeshCollider>();
 
     private Task drawingTask = null;
 
@@ -100,43 +91,8 @@ public class ChaperoneEditorPointer : MonoBehaviour
         // Initialize smoothed position
         _smoothedHitPoint = transform.position;
         _previousSmoothedHitPoint = transform.position;
-
-        // Add child object
-        modelHolder = new GameObject("ControllerModel");
-        modelHolder.transform.SetParent(transform);
-
-        // Add SteamVR render model
-        SteamVR_RenderModel renderModel = modelHolder.AddComponent<SteamVR_RenderModel>();
-        renderModel.SetInputSource(inputSource);
-
-        // Find device index belonging to our input source
-        SteamVR_Behaviour_Pose pose = GetComponent<SteamVR_Behaviour_Pose>();
-        if (pose != null)
-        {
-            pose.inputSource = inputSource;
-            renderModel.SetDeviceIndex(pose.GetDeviceIndex());
-        }
-
-        // Set shader to URP lit
-        renderModel.shader = controllerShader;
     }
 
-    private void OnModelLoaded(SteamVR_RenderModel model)
-    {
-        // Clear existing colliders from previous models
-        foreach (var collider in controllerColliders)
-        {
-            if (collider != null) Destroy(collider);
-        }
-        controllerColliders.Clear();
-
-        foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
-        {
-            var collider = mf.gameObject.AddComponent<MeshCollider>();
-            collider.convex = true;
-            controllerColliders.Add(collider);
-        }
-    }
 
     private void OnEnable()
     {
@@ -148,28 +104,22 @@ public class ChaperoneEditorPointer : MonoBehaviour
             snapAction.actionSet.Activate(inputSource);
         if (deletePointAction != null)
             deletePointAction.actionSet.Activate(inputSource);
-        if (floorAdjustAction != null)
-            floorAdjustAction.actionSet.Activate(inputSource);
-        if (floorMoveAction != null)
-            floorMoveAction.actionSet.Activate(inputSource);
         if (movePlayAreaAction != null)
             movePlayAreaAction.actionSet.Activate(inputSource);
     }
 
     private void OnDisable()
     {
-        if (modifyAction != null)
-            modifyAction.actionSet.Deactivate(inputSource);
-        if (snapAction != null)
-            snapAction.actionSet.Deactivate(inputSource);
-        if (deletePointAction != null)
-            deletePointAction.actionSet.Deactivate(inputSource);
-        if (floorAdjustAction != null)
-            floorAdjustAction.actionSet.Deactivate(inputSource);
-        if (floorMoveAction != null)
-            floorMoveAction.actionSet.Deactivate(inputSource);
-        if (movePlayAreaAction != null)
-            movePlayAreaAction.actionSet.Deactivate(inputSource);
+        if (amIDrawing)
+        {
+            isAnyPointerDrawing = false;
+            amIDrawing = false;
+            if (chaperoneMesh != null)
+            {
+                chaperoneMesh.Simplify();
+            }
+        }
+        isMovingPlayArea = false;
     }
 
     void Update()
@@ -202,24 +152,6 @@ public class ChaperoneEditorPointer : MonoBehaviour
             pointerVisual.localScale = new Vector3(pointerVisual.localScale.x, visualLength / 2.0f, pointerVisual.localScale.z);
         }
 
-        // Check if new children were added (the render model)
-        if (modelHolder.transform.childCount != 0 && !hasLoaded)
-        {
-            hasLoaded = true;
-            OnModelLoaded(modelHolder.GetComponent<SteamVR_RenderModel>());
-        }
-
-        // Handle floor movement input
-        Vector2 moveInput = floorMoveAction.GetAxis(inputSource);
-        if (Mathf.Abs(moveInput.y) > 0.1f)
-        {
-            float moveAmount = moveInput.y * Time.deltaTime * 0.1f;
-            chaperoneMesh.AdjustFloorHeight(chaperoneMesh.GetFloorHeight() + moveAmount);
-            var newCenter = roomCenter.position;
-            newCenter.y += moveAmount;
-            roomCenter.position = newCenter;
-        }
-
         if (movePlayAreaAction != null && movePlayAreaAction.GetStateDown(inputSource))
         {
             isMovingPlayArea = true;
@@ -244,40 +176,13 @@ public class ChaperoneEditorPointer : MonoBehaviour
             return; // Skip other interactions
         }
 
-        isSnapping = snapAction.GetState(inputSource);
+        isSnapping = snapAction != null && snapAction.GetState(inputSource);
 
-        if (floorAdjustAction.GetState(inputSource))
+        // --- REGULAR EDITING MODE ---
+        if (!didHit) return;
+        UpdateSmoothedHitPoint(ray.GetPoint(hitDistance));
+        if (isSnapping)
         {
-            // --- FLOOR ADJUST MODE ---
-            if (controllerColliders.Count > 0)
-            {
-                float lowestY = float.MaxValue;
-                foreach (var collider in controllerColliders)
-                {
-                    // We need the world space bounds to find the lowest point.
-                    var bounds = collider.ClosestPoint(transform.position + Vector3.down * 100.0f);
-                    if (bounds.y < lowestY)
-                    {
-                        lowestY = bounds.y;
-                    }
-                }
-
-                if (lowestY != float.MaxValue)
-                {
-                    chaperoneMesh.AdjustFloorHeight(lowestY);
-                    var newCenter = roomCenter.position;
-                    newCenter.y = lowestY;
-                    roomCenter.position = newCenter;
-                }
-            }
-        }
-        else
-        {
-            // --- REGULAR EDITING MODE ---
-            if (!didHit) return;
-            UpdateSmoothedHitPoint(ray.GetPoint(hitDistance));
-            if (isSnapping)
-            {
                 // --- SNAPPING MODE ---
                 Vector3 snappedVertexWorldPos;
                 snappedVertexIndex = chaperoneMesh.FindNearestPoint(_smoothedHitPoint, out snappedVertexWorldPos);
@@ -379,8 +284,7 @@ public class ChaperoneEditorPointer : MonoBehaviour
                 }
             }
 
-            _previousSmoothedHitPoint = _smoothedHitPoint;
-        }
+        _previousSmoothedHitPoint = _smoothedHitPoint;
     }
 
     private void UpdateSmoothedHitPoint(Vector3 rawHitPoint)

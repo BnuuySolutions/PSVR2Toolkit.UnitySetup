@@ -1,7 +1,7 @@
 {
    "action_manifest_version" : 0,
    "alias_info" : {},
-   "app_key" : "application.generated.unity.psvr2toolkit.unitysetup.exe",
+   "app_key" : "application.generated.unity.psvr2passthrough.exe",
    "bindings" : {
       "/actions/buggy" : {
          "chords" : [],
@@ -116,16 +116,6 @@
                },
                "mode" : "button",
                "parameters" : {},
-               "path" : "/user/hand/left/input/square"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/snaptopoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
                "path" : "/user/hand/right/input/square"
             },
             {
@@ -197,16 +187,6 @@
             {
                "inputs" : {
                   "click" : {
-                     "output" : "/actions/playarea/in/snaptopoint"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/cross"
-            },
-            {
-               "inputs" : {
-                  "click" : {
                      "output" : "/actions/playarea/in/drawormove"
                   }
                },
@@ -233,6 +213,26 @@
                "mode" : "button",
                "parameters" : {},
                "path" : "/user/hand/right/input/r1"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/playarea/in/snaptopoint"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/l1"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/playarea/in/snaptopoint"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/r1"
             }
          ]
       }
@@ -241,7 +241,7 @@
    "controller_type" : "playstation_vr2_sense",
    "description" : "(auto-remapped from oculus_touch)",
    "interaction_profile" : "",
-   "name" : "PS VR2 Sense Controller Bindings",
+   "name" : "oculus_touch",
    "options" : {},
    "simulated_actions" : []
 }

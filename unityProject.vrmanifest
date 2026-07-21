@@ -2,7 +2,7 @@
   "source": "Unity",
   "applications": [
     {
-      "app_key": "application.generated.unity.psvr2toolkit.unitysetup.exe",
+      "app_key": "application.generated.unity.psvr2passthrough.exe",
       "launch_type": "url",
       "url": "steam://launch/",
       "action_manifest_path": "F:\\PSVR2Toolkit.UnitySetup\\Assets\\StreamingAssets\\SteamVR\\actions.json",
