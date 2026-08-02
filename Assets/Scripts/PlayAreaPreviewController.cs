@@ -28,9 +28,9 @@ public class PlayAreaPreviewController : MonoBehaviour
     [Tooltip("Grid resolution for the fitting algorithm.")]
     public int gridResolution = 100;
 
-    [Header("Events")]
-    [Tooltip("Invoked when a valid play area rectangle has been successfully fitted and previewed.")]
-    public UnityEvent OnPreviewExists;
+    [Header("Status")]
+    [Tooltip("True when a valid play area rectangle has been successfully fitted and previewed.")]
+    public bool previewExists;
 
     // Thread synchronization locks
     private readonly object m_Lock = new object();
@@ -59,13 +59,14 @@ public class PlayAreaPreviewController : MonoBehaviour
     private float currentLength;
     private float currentYaw;
     private bool m_IsInitialized = false;
-    private bool m_PreviewExistsEventFired = false;
+    private bool m_PreviewExistsFired = false;
 
     private void OnEnable()
     {
         m_IsInitialized = false;
         m_HasTargets = false;
-        m_PreviewExistsEventFired = false;
+        m_PreviewExistsFired = false;
+        previewExists = false;
 
         // Clear visual preview on enable
         if (chaperoneMesh != null)
@@ -106,7 +107,8 @@ public class PlayAreaPreviewController : MonoBehaviour
                 m_HasTargets = false;
             }
             m_IsInitialized = false;
-            m_PreviewExistsEventFired = false;
+            m_PreviewExistsFired = false;
+            previewExists = false;
         }
 
         // Check if the preview action is held
@@ -146,11 +148,11 @@ public class PlayAreaPreviewController : MonoBehaviour
         if (hasTargets)
         {
             // Fire event once when preview becomes valid
-            if (!m_PreviewExistsEventFired)
+            if (!m_PreviewExistsFired)
             {
-                m_PreviewExistsEventFired = true;
+                m_PreviewExistsFired = true;
                 Debug.Log("Preview Exists");
-                OnPreviewExists?.Invoke();
+                previewExists = true;
             }
 
             if (!m_IsInitialized)

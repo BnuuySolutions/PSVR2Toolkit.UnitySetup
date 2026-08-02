@@ -935,10 +935,43 @@ public class ChaperoneMesh : MonoBehaviour
         Debug.Log("Chaperone data saved to shared memory.");
     }
 
+    public void ActivateMap()
+    {
+        PSVR2SharedMemory.Cmd_ActivateMap();
+    }
+
+    public void RefineMap()
+    {
+        PSVR2SharedMemory.Cmd_RefineMap();
+    }
+
     public void ClearMap()
     {
         PSVR2SharedMemory.ClearMap();
-        Debug.Log("Map cleared.");
+    }
+
+    public bool IsMapRegistrationError()
+    {
+        return PSVR2SharedMemory.Cmd_IsMapRegistrationError();
+    }
+
+    public float GetMapScore()
+    {
+        if (PSVR2SharedMemory.Cmd_GetMapScore(out float score))
+        {
+            return score;
+        }
+        return 0;
+    }
+
+    public bool TryGetMapScore(out float score)
+    {
+        return PSVR2SharedMemory.Cmd_GetMapScore(out score);
+    }
+
+    public int GetTrackingStatus()
+    {
+        return PSVR2SharedMemory.Cmd_GetTrackingStatus();
     }
 
     #region Simplification Algorithms

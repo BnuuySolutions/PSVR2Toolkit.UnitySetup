@@ -100,8 +100,11 @@ public static class PSVR2SharedMemory
 
     private const string PLAYAREA_RESULT_MUTEX_NAME = "SHARE_VRT2_WIN_PLAYAREA_RESULT_MTX";
     private const int PLAYAREA_RESULT_OFFSET = 0x927C;
+    private const int PLAYAREA_RING_META_OFFSET = 0x7FD0;
+    private const int PLAYAREA_RING_DATA_OFFSET = 0x110C208;
 
-    private const uint INFINITE = 0xFFFFFFFF;
+    private const string VR_DIALOG_MUTEX_NAME = "SHARE_VRT2_WIN_VR_DIALOG_MTX";
+    private const int VR_TRACKING_STATUS_OFFSET = 0x9AF0;
 
     private static IntPtr shm = IntPtr.Zero;
     private static IntPtr pBuf = IntPtr.Zero;
@@ -566,5 +569,141 @@ public static class PSVR2SharedMemory
     public static void ClearMap()
     {
         TriggerEVFWorker(0x20);
+    }
+
+    public static int ReadPlayAreaResultRingBuffer(byte[] out64Buffer = null)
+    {
+        if (!initialized || pBuf == IntPtr.Zero) return -1;
+
+        IntPtr hPlayAreaMutex = CrossIPC.CreateIpcMutex(PLAYAREA_RESULT_MUTEX_NAME);
+        if (hPlayAreaMutex == IntPtr.Zero) return -1;
+
+        try
+        {
+            CrossIPC.IpcMutex_Lock(hPlayAreaMutex);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to acquire PlayArea mutex for ring buffer read: " + ex.Message);
+            CrossIPC.DestroyIpcMutex(hPlayAreaMutex);
+            return -1;
+        }
+
+        int bestSlot = -1;
+        uint highestSeq = 0;
+
+        try
+        {
+            IntPtr basePtr = pBuf;
+
+            for (int i = 0; i < 8; i++)
+            {
+                int state = Marshal.ReadInt32(basePtr, PLAYAREA_RING_META_OFFSET + (i * 12));
+                if (state == 1 || state == 2)
+                {
+                    uint seq = (uint)Marshal.ReadInt32(basePtr, PLAYAREA_RING_META_OFFSET + (i * 12) + 8);
+                    if (bestSlot == -1 || seq >= highestSeq)
+                    {
+                        highestSeq = seq;
+                        bestSlot = i;
+                    }
+                }
+            }
+
+            if (bestSlot != -1)
+            {
+                IntPtr slotStatePtr = new IntPtr(basePtr.ToInt64() + PLAYAREA_RING_META_OFFSET + (bestSlot * 12));
+                Marshal.WriteInt32(slotStatePtr, 2); // Mark Reading
+
+                if (out64Buffer != null && out64Buffer.Length >= 64)
+                {
+                    IntPtr slotDataPtr = new IntPtr(basePtr.ToInt64() + PLAYAREA_RING_DATA_OFFSET + (bestSlot * 64));
+                    Marshal.Copy(slotDataPtr, out64Buffer, 0, 64);
+                }
+
+                Marshal.WriteInt32(slotStatePtr, 1); // Mark Ready
+            }
+        }
+        finally
+        {
+            try
+            {
+                CrossIPC.IpcMutex_Unlock(hPlayAreaMutex);
+            }
+            catch {}
+            CrossIPC.DestroyIpcMutex(hPlayAreaMutex);
+        }
+
+        return bestSlot;
+    }
+
+    public static void Cmd_ActivateMap()
+    {
+        TriggerEVFWorker(0x4);
+    }
+
+    public static bool Cmd_GetMapScore(out float score)
+    {
+        byte[] buffer = new byte[64];
+        int slotIndex = ReadPlayAreaResultRingBuffer(buffer);
+        if (slotIndex >= 0)
+        {
+            uint val0 = BitConverter.ToUInt32(buffer, 4);
+            if (val0 != 0) { score = (float)val0; return true; }
+
+            score = 0.0f;
+            return true;
+        }
+
+        score = 0.0f;
+        return false;
+    }
+
+    public static int Cmd_GetTrackingStatus()
+    {
+        if (!initialized || pBuf == IntPtr.Zero) return -1;
+
+        IntPtr hDialogMutex = CrossIPC.CreateIpcMutex(VR_DIALOG_MUTEX_NAME);
+        if (hDialogMutex == IntPtr.Zero) return -1;
+
+        try
+        {
+            CrossIPC.IpcMutex_Lock(hDialogMutex);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Failed to lock VR Dialog mutex for tracking status: " + ex.Message);
+            CrossIPC.DestroyIpcMutex(hDialogMutex);
+            return -1;
+        }
+
+        int status = -1;
+
+        try
+        {
+            status = Marshal.ReadInt32(pBuf, VR_TRACKING_STATUS_OFFSET);
+        }
+        finally
+        {
+            try
+            {
+                CrossIPC.IpcMutex_Unlock(hDialogMutex);
+            }
+            catch {}
+            CrossIPC.DestroyIpcMutex(hDialogMutex);
+        }
+
+        return status;
+    }
+
+    public static bool Cmd_IsMapRegistrationError()
+    {
+        int slotIndex = ReadPlayAreaResultRingBuffer();
+        return slotIndex < 0;
+    }
+
+    public static void Cmd_RefineMap()
+    {
+        TriggerEVFWorker(0x2);
     }
 }
