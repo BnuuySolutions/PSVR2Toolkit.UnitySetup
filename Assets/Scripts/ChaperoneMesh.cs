@@ -137,6 +137,18 @@ public class ChaperoneMesh : MonoBehaviour
         RefreshMesh();
     }
 
+    /// <summary>
+    /// Creates a default standing rectangle only when no play area exists yet.
+    /// Preserves an existing play area (and any floor-height edits).
+    /// </summary>
+    public void EnsureDefaultPlayArea()
+    {
+        if (!HasPlayArea())
+        {
+            CreateDefaultPlayArea();
+        }
+    }
+
     private Task floorTask = null;
     private Task lineTask = null;
     private Task rectTask = null;

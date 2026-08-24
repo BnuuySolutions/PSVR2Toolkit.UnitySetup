@@ -138,42 +138,78 @@
                "parameters" : {},
                "path" : "/user/hand/right/input/triangle"
             },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/moveplayarea"
-                  },
-                  "position" : {
-                     "output" : "/actions/playarea/in/movefloor"
-                  }
-               },
-               "mode" : "joystick",
-               "parameters" : {},
-               "path" : "/user/hand/left/input/left_stick"
+        {
+          "inputs" : {
+            "click" : {
+              "output" : "/actions/playarea/in/moveplayarea"
             },
-            {
-               "inputs" : {
-                  "position" : {
-                     "output" : "/actions/playarea/in/movefloor"
-                  }
-               },
-               "mode" : "joystick",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/left_stick"
+            "position" : {
+              "output" : "/actions/playarea/in/movefloor"
+            }
+          },
+          "mode" : "joystick",
+          "parameters" : {},
+          "path" : "/user/hand/left/input/joystick"
+        },
+        {
+          "inputs" : {
+            "position" : {
+              "output" : "/actions/playarea/in/movefloor"
+            }
+          },
+          "mode" : "joystick",
+          "parameters" : {},
+          "path" : "/user/hand/right/input/joystick"
+        },
+        {
+          "inputs" : {
+            "click" : {
+              "output" : "/actions/playarea/in/moveplayarea"
             },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/playarea/in/moveplayarea"
-                  },
-                  "position" : {
-                     "output" : "/actions/playarea/in/movefloor"
-                  }
-               },
-               "mode" : "joystick",
-               "parameters" : {},
-               "path" : "/user/hand/right/input/right_stick"
+            "position" : {
+              "output" : "/actions/playarea/in/movefloor"
+            }
+          },
+          "mode" : "joystick",
+          "parameters" : {},
+          "path" : "/user/hand/right/input/joystick"
+        },
+        {
+          "inputs" : {
+            "click" : {
+              "output" : "/actions/playarea/in/moveplayarea"
             },
+            "position" : {
+              "output" : "/actions/playarea/in/movefloor"
+            }
+          },
+          "mode" : "joystick",
+          "parameters" : {},
+          "path" : "/user/hand/left/input/left_stick"
+        },
+        {
+          "inputs" : {
+            "position" : {
+              "output" : "/actions/playarea/in/movefloor"
+            }
+          },
+          "mode" : "joystick",
+          "parameters" : {},
+          "path" : "/user/hand/right/input/left_stick"
+        },
+        {
+          "inputs" : {
+            "click" : {
+              "output" : "/actions/playarea/in/moveplayarea"
+            },
+            "position" : {
+              "output" : "/actions/playarea/in/movefloor"
+            }
+          },
+          "mode" : "joystick",
+          "parameters" : {},
+          "path" : "/user/hand/right/input/right_stick"
+        },
             {
                "inputs" : {
                   "click" : {
