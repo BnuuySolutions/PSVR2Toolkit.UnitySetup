@@ -81,7 +81,7 @@ public class FloorHeightCalibrator : MonoBehaviour
             Vector2 moveInput = floorMoveAction.GetAxis(inputSource);
             if (Mathf.Abs(moveInput.y) > 0.1f)
             {
-                float moveAmount = moveInput.y * Time.deltaTime * 0.1f;
+                float moveAmount = moveInput.y * Time.deltaTime * 0.35f;
                 float newFloorHeight = chaperoneMesh.GetFloorHeight() + moveAmount;
                 chaperoneMesh.AdjustFloorHeight(newFloorHeight);
                 if (roomCenter != null)
